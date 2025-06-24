@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "WakeUp Buddy",
+    "slug": "wakeup-buddy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "wakeupbuddy",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wakeupbuddy.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio", "background-processing"],
+        "NSMicrophoneUsageDescription": "This app does not use the microphone."
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router", 
+      "expo-font", 
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#9333EA"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
