@@ -91,4 +91,21 @@ export class NotificationService {
       return [];
     }
   }
+
+  static async scheduleAlarmNotification(alarmTime: Date) {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Notification permissions not granted!');
+      return;
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '⏰ Wake Up!',
+        body: 'Your alarm is going off!',
+        sound: true,
+      },
+      trigger: alarmTime,
+    });
+  }
 }

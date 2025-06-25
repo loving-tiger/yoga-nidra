@@ -12,11 +12,25 @@ import { useTheme } from '@/components/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import Button from '@/components/Button';
+import DateTimePicker from '@react-native-community/datetimepicker';
 // @ts-ignore
 import tinycolor from 'tinycolor2';
+import { useAuth } from '@/components/AuthContext';
+import { saveAlarmTime } from '@/services/SupabaseService';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PROGRESS_BAR_WIDTH = Math.min(220, SCREEN_WIDTH * 0.7);
+
+const PRESET_COLORS = [
+  '#A7C7E7', // pastel blue
+  '#B5EAD7', // pastel mint
+  '#FFDAC1', // pastel peach
+  '#E2F0CB', // pastel green
+  '#FFB7B2', // pastel pink
+  '#C7CEEA', // pastel lavender
+  '#FFF1BA', // pastel yellow
+  '#D4A5A5', // muted rose
+];
 
 function safeTinycolor(color: string) {
   try {
@@ -29,29 +43,29 @@ function safeTinycolor(color: string) {
   }
 }
 
-function SkipButton({ direction, onPress }: { direction: 'back' | 'forward'; onPress: () => void }) {
+function SkipButton({ direction, onPress, color, backgroundColor }: { direction: 'back' | 'forward'; onPress: () => void; color: string; backgroundColor: string }) {
   // Classic skip icon: two triangles and a bar
   const isBack = direction === 'back';
   return (
-    <TouchableOpacity style={styles.controlButton} onPress={onPress}>
+    <TouchableOpacity style={[styles.controlButton, { backgroundColor }]} onPress={onPress}>
       <Svg width={36} height={36} viewBox="0 0 36 36">
         {isBack ? (
           <>
             {/* Bar */}
-            <Rect x={7} y={10} width={3} height={16} fill="#fff" rx={1.5} />
+            <Rect x={7} y={10} width={3} height={16} fill={color} rx={1.5} />
             {/* First triangle */}
-            <Polygon points="24,10 12,18 24,26" fill="#fff" />
+            <Polygon points="24,10 12,18 24,26" fill={color} />
             {/* Second triangle, slightly to the right */}
-            <Polygon points="30,10 18,18 30,26" fill="#fff" />
+            <Polygon points="30,10 18,18 30,26" fill={color} />
           </>
         ) : (
           <>
             {/* Bar */}
-            <Rect x={26} y={10} width={3} height={16} fill="#fff" rx={1.5} />
+            <Rect x={26} y={10} width={3} height={16} fill={color} rx={1.5} />
             {/* First triangle */}
-            <Polygon points="12,10 24,18 12,26" fill="#fff" />
+            <Polygon points="12,10 24,18 12,26" fill={color} />
             {/* Second triangle, slightly to the left */}
-            <Polygon points="6,10 18,18 6,26" fill="#fff" />
+            <Polygon points="6,10 18,18 6,26" fill={color} />
           </>
         )}
       </Svg>
@@ -87,6 +101,15 @@ export default function DashboardScreen() {
   const lastSeekPosition = useRef<number | null>(null);
   const { themeColor, setThemeColor, lightness, setLightness, colors } = useTheme();
   const [colorModalVisible, setColorModalVisible] = useState(false);
+
+  // Hide alarm tab for now
+  // const [settingsTab, setSettingsTab] = useState<'color' | 'alarm'>('color');
+  const [settingsTab, setSettingsTab] = useState<'color'>('color');
+
+  // Alarm state (hidden for now)
+  const [alarmTime, setAlarmTime] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const { session } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
@@ -190,7 +213,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <AnimatedBackground />
+      <AnimatedBackground color={themeColor} />
       {!showControls && (
         <TouchableOpacity 
           style={[styles.ariseButton, { backgroundColor: colors.button + '22', borderColor: colors.button }]}
@@ -204,8 +227,8 @@ export default function DashboardScreen() {
       {showControls && (
         <View style={styles.centeredControlsWrapper}>
           <View style={styles.controlsRow}>
-            <SkipButton direction="back" onPress={() => handleSeek(-15)} />
-            <SkipButton direction="forward" onPress={() => handleSeek(15)} />
+            <SkipButton direction="back" onPress={() => handleSeek(-15)} color={colors.buttonText} backgroundColor={colors.button} />
+            <SkipButton direction="forward" onPress={() => handleSeek(15)} color={colors.buttonText} backgroundColor={colors.button} />
             <TouchableOpacity style={[styles.controlButton, { backgroundColor: colors.button }]} onPress={handlePausePlay} disabled={isLoading}>
               {isPlaying ? <Pause size={24} color={colors.buttonText} /> : <Play size={24} color={colors.buttonText} />}
             </TouchableOpacity>
@@ -287,7 +310,7 @@ export default function DashboardScreen() {
           onPress={() => setColorModalVisible(true)}
           activeOpacity={0.85}
         >
-          <MaterialCommunityIcons name="palette" size={28} color={colors.buttonText} />
+          <MaterialCommunityIcons name="cog" size={28} color={colors.buttonText} />
         </TouchableOpacity>
       </RNView>
 
@@ -299,35 +322,157 @@ export default function DashboardScreen() {
         onRequestClose={() => setColorModalVisible(false)}
       >
         <RNView style={styles.modalOverlay}>
-          <RNView style={[styles.modalContent, { backgroundColor: colors.card }]}> 
-            <View style={{ width: 260, height: 260, alignSelf: 'center' }}>
-              <WheelColorPicker
-                color={themeColor}
-                onColorChange={color => {
-                  setThemeColor(color);
+          <RNView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            {/* Tab Switcher */}
+            <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderBottomWidth: 2,
+                  borderBottomColor: settingsTab === 'color' ? themeColor : 'transparent',
+                  alignItems: 'center',
                 }}
-              />
+                onPress={() => setSettingsTab('color')}
+              >
+                <Text style={{ color: settingsTab === 'color' ? themeColor : colors.text, fontWeight: '600' }}>Color</Text>
+              </TouchableOpacity>
+              {/* 
+              // Hide the Alarm tab for now, but keep the code for future use
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderBottomWidth: 2,
+                  borderBottomColor: settingsTab === 'alarm' ? themeColor : 'transparent',
+                  alignItems: 'center',
+                }}
+                onPress={() => setSettingsTab('alarm')}
+              >
+                <Text style={{ color: settingsTab === 'alarm' ? themeColor : colors.text, fontWeight: '600' }}>Alarm</Text>
+              </TouchableOpacity>
+              */}
             </View>
-            <View style={{ marginTop: 24 }}>
-              <Text style={{ color: colors.text, fontWeight: '600', marginBottom: 8, textAlign: 'center' }}>Lightness</Text>
-              <Slider
-                minimumValue={0}
-                maximumValue={1}
-                value={lightness}
-                onValueChange={setLightness}
-                minimumTrackTintColor={themeColor}
-                maximumTrackTintColor="#ccc"
-                thumbTintColor={themeColor}
-                style={{ width: 200, alignSelf: 'center' }}
-              />
-            </View>
-            <Button
-              title="Done"
-              onPress={() => setColorModalVisible(false)}
-              color={colors.button}
-              textColor={colors.buttonText}
-              style={{ marginTop: 24 }}
-            />
+            {/* Tab Content */}
+            {settingsTab === 'color' ? (
+              <>
+                <Text style={{
+                  color: '#111',
+                  fontWeight: '700',
+                  marginBottom: 16,
+                  textAlign: 'center',
+                  fontSize: 20,
+                  letterSpacing: 0.5,
+                }}>
+                  Choose a Theme Color
+                </Text>
+                <View style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  marginBottom: 24,
+                }}>
+                  {PRESET_COLORS.map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: color,
+                        margin: 8,
+                        borderWidth: themeColor === color ? 3 : 1,
+                        borderColor: themeColor === color ? '#111' : '#ccc',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        shadowColor: color,
+                        shadowOpacity: themeColor === color ? 0.3 : 0.1,
+                        shadowRadius: 6,
+                        shadowOffset: { width: 0, height: 2 },
+                      }}
+                      onPress={() => setThemeColor(color)}
+                      activeOpacity={0.8}
+                    >
+                      {themeColor === color && (
+                        <Text style={{ color: '#111', fontWeight: 'bold', fontSize: 18 }}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Button
+                  title="Done"
+                  onPress={() => setColorModalVisible(false)}
+                  color={colors.button}
+                  textColor={colors.buttonText}
+                  style={{ marginTop: 8 }}
+                />
+              </>
+            ) : (
+              // Hide the alarm tab content for now, but keep the code for future use
+              /*
+              <View style={{ alignItems: 'center', marginTop: 10 }}>
+                <Text style={{
+                  color: '#111',
+                  fontWeight: '700',
+                  marginBottom: 16,
+                  textAlign: 'center',
+                  fontSize: 20,
+                  letterSpacing: 0.5,
+                }}>
+                  Set Alarm Time
+                </Text>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: themeColor,
+                    borderRadius: 10,
+                    padding: 12,
+                    marginBottom: 16,
+                  }}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Text style={{ color: '#111', fontWeight: '600' }}>
+                    {alarmTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={alarmTime}
+                    mode="time"
+                    is24Hour={false}
+                    display="spinner"
+                    onChange={(event: any, selectedDate: Date | undefined) => {
+                      setShowTimePicker(false);
+                      if (selectedDate) setAlarmTime(selectedDate);
+                    }}
+                  />
+                )}
+                <Button
+                  title="Save Alarm Time"
+                  onPress={async () => {
+                    if (!session?.user?.id) {
+                      alert('You must be logged in to save alarm time.');
+                      return;
+                    }
+                    try {
+                      await saveAlarmTime(session.user.id, alarmTime);
+                      alert('Alarm time saved!');
+                      setColorModalVisible(false);
+                    } catch (error: any) {
+                      let message = 'Failed to save alarm time.';
+                      if (error?.message) message += '\n' + error.message;
+                      if (error?.details) message += '\n' + error.details;
+                      else if (typeof error === 'object') message += '\n' + JSON.stringify(error);
+                      alert(message);
+                    }
+                  }}
+                  color={colors.button}
+                  textColor={colors.buttonText}
+                  style={{ marginTop: 8 }}
+                />
+              </View>
+              */
+              null
+            )}
           </RNView>
         </RNView>
       </Modal>

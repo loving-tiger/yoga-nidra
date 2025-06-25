@@ -1,22 +1,31 @@
-import { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { AuthProvider, useAuth } from '@/components/AuthContext';
 import { ThemeProvider } from '@/components/ThemeContext';
+import SignUpScreen from './signup'; // adjust path if needed
+
+function RootLayoutNav() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    // Optionally show a splash/loading screen
+    return null;
+  }
+
+  if (!session) {
+    // Not logged in: show sign-up
+    return <SignUpScreen />;
+  }
+
+  // Logged in: show the main app (Stack, Tabs, etc.)
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
 
 export default function RootLayout() {
-  useFrameworkReady();
-
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <ThemeProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
