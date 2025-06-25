@@ -28,7 +28,7 @@ export default function HomeScreen() {
   const handleSetAlarm = async () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(7, 0, 0, 0); // Default to 7:00 AM
+    tomorrow.setHours(7, 0, 0, 0);
 
     const success = await scheduleAlarm(tomorrow, DEFAULT_ROUTINES[0]);
     if (success) {
@@ -85,9 +85,10 @@ export default function HomeScreen() {
       <AnimatedBackground />
       
       <ScrollView 
-        style={styles.content}
+        style={styles.scrollContent}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        bounces={true}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -179,12 +180,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scrollContent: {
     flex: 1,
   },
   contentContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
+    paddingBottom: 100, // Add padding for transparent tab bar
   },
   header: {
     alignItems: 'center',

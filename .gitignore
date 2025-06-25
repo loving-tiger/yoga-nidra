@@ -33,3 +33,34 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
+# --- Node / TypeScript ---
+node_modules/
+.npm/
+*.log
+.env
+.env.*
+
+# --- Expo ---
+.expo/
+.expo-shared/
+*.expo
+
+# --- iOS / Android build artifacts (if you “prebuild” later) ---
+ios/build/
+android/app/build/
+*.xcworkspace
+Pods/
+*.iml
+.gradle/
+build/
+*.apk
+*.aab
+
+# --- VS Code / Cursor ---
+.vscode/
+.history/
+
+# --- macOS ---
+.DS_Store

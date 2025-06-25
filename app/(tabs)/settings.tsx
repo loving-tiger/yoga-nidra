@@ -168,6 +168,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
+    paddingBottom: 100,
   },
   header: {
     paddingTop: 40,

@@ -16,9 +16,8 @@ export class AudioService {
 
   static async initializeAudio(): Promise<void> {
     if (Platform.OS === 'web') {
-      return; // Audio setup handled differently on web
+      return;
     }
-
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -34,38 +33,95 @@ export class AudioService {
 
   static async playRoutine(routine: AudioRoutine): Promise<boolean> {
     try {
-      // Stop any currently playing audio
       await this.stopAudio();
-
       if (Platform.OS === 'web') {
-        // For web demo, we'll simulate audio playback
         console.log('Playing routine:', routine.title);
         this.isPlaying = true;
         return true;
       }
-
-      // For now, we'll use a placeholder audio file
-      // In production, this would be the generated TTS audio
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: routine.audioUrl || 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav' },
-        { shouldPlay: true, isLooping: false }
+      // Play the Tibetan Bowl Sound 1 first
+      const bowlSound = await Audio.Sound.createAsync(
+        require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
+        {
+          shouldPlay: true,
+          isLooping: false,
+          volume: 0.8,
+          rate: 1.0,
+        }
       );
-
-      this.sound = sound;
+      this.sound = bowlSound.sound;
       this.isPlaying = true;
-
-      // Set up playback status listener
-      sound.setOnPlaybackStatusUpdate((status) => {
+      bowlSound.sound.setOnPlaybackStatusUpdate(async (status) => {
         if (status.isLoaded && status.didJustFinish) {
-          this.isPlaying = false;
-          this.sound = null;
+          // Play the ElevenLabs.mp3 audio immediately after
+          const elevenLabsSound = await Audio.Sound.createAsync(
+            require('../assets/audio/ElevenLabs.mp3'),
+            {
+              shouldPlay: true,
+              isLooping: false,
+              volume: 1.0,
+              rate: 1.0,
+            }
+          );
+          this.sound = elevenLabsSound.sound;
+          elevenLabsSound.sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded && status.didJustFinish) {
+              this.isPlaying = false;
+              this.sound = null;
+            }
+          });
         }
       });
-
       return true;
     } catch (error) {
       console.error('Error playing routine:', error);
+      if (Platform.OS === 'web') {
+        this.isPlaying = true;
+        return true;
+      }
       return false;
+    }
+  }
+
+  static async playSingingBowlStart(): Promise<void> {
+    try {
+      if (Platform.OS === 'web') return;
+      const { sound } = await Audio.Sound.createAsync(
+        require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
+        {
+          shouldPlay: true,
+          isLooping: false,
+          volume: 0.6,
+        }
+      );
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error('Error playing singing bowl start:', error);
+    }
+  }
+
+  static async playSingingBowlEnd(): Promise<void> {
+    try {
+      if (Platform.OS === 'web') return;
+      const { sound } = await Audio.Sound.createAsync(
+        require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
+        {
+          shouldPlay: true,
+          isLooping: false,
+          volume: 0.7,
+        }
+      );
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error('Error playing singing bowl end:', error);
     }
   }
 
@@ -80,6 +136,7 @@ export class AudioService {
         console.error('Error stopping audio:', error);
       }
     }
+    this.isPlaying = false;
   }
 
   static async pauseAudio(): Promise<void> {

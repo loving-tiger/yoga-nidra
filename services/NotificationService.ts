@@ -7,6 +7,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -46,11 +48,12 @@ export class NotificationService {
         content: {
           title: 'Good Morning ☀️',
           body: `Time for your ${routineTitle} routine`,
-          sound: 'default',
+          sound: Platform.OS === 'ios' ? 'tibetan-singing-bowl.wav' : 'tibetan_singing_bowl',
           priority: Notifications.AndroidNotificationPriority.HIGH,
           categoryIdentifier: 'alarm',
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
           hour: time.getHours(),
           minute: time.getMinutes(),
           repeats: true,

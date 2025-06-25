@@ -20,45 +20,45 @@ export default function Button({
   style,
   textStyle,
 }: ButtonProps) {
-  const getButtonStyle = () => {
-    const baseStyle = [styles.button, styles[`${size}Button`]];
+  const getButtonStyle = (): ViewStyle[] => {
+    const baseStyle: ViewStyle[] = [styles.button, styles[`${size}Button`]];
     
     switch (variant) {
       case 'primary':
-        baseStyle.push(styles.primaryButton);
+        baseStyle.push(styles.primaryButton as ViewStyle);
         break;
       case 'secondary':
-        baseStyle.push(styles.secondaryButton);
+        baseStyle.push(styles.secondaryButton as ViewStyle);
         break;
       case 'ghost':
-        baseStyle.push(styles.ghostButton);
+        baseStyle.push(styles.ghostButton as ViewStyle);
         break;
     }
     
     if (disabled) {
-      baseStyle.push(styles.disabledButton);
+      baseStyle.push(styles.disabledButton as ViewStyle);
     }
     
     return baseStyle;
   };
 
-  const getTextStyle = () => {
-    const baseStyle = [styles.text, styles[`${size}Text`]];
+  const getTextStyle = (): TextStyle[] => {
+    const baseStyle: TextStyle[] = [styles.text, styles[`${size}Text`]];
     
     switch (variant) {
       case 'primary':
-        baseStyle.push(styles.primaryText);
+        baseStyle.push(styles.primaryText as TextStyle);
         break;
       case 'secondary':
-        baseStyle.push(styles.secondaryText);
+        baseStyle.push(styles.secondaryText as TextStyle);
         break;
       case 'ghost':
-        baseStyle.push(styles.ghostText);
+        baseStyle.push(styles.ghostText as TextStyle);
         break;
     }
     
     if (disabled) {
-      baseStyle.push(styles.disabledText);
+      baseStyle.push(styles.disabledText as TextStyle);
     }
     
     return baseStyle;
