@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from './ThemeContext';
 
 interface TimeDisplayProps {
   time: Date;
@@ -7,6 +8,7 @@ interface TimeDisplayProps {
 }
 
 export default function TimeDisplay({ time, size = 'large' }: TimeDisplayProps) {
+  const { colors } = useTheme();
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
@@ -17,7 +19,7 @@ export default function TimeDisplay({ time, size = 'large' }: TimeDisplayProps) 
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.time, size === 'small' && styles.timeSmall]}>
+      <Text style={[styles.time, size === 'small' && styles.timeSmall, { color: colors.button }]}>
         {formatTime(time)}
       </Text>
     </View>
@@ -31,7 +33,6 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 48,
     fontWeight: '300',
-    color: '#581C87',
     letterSpacing: -1,
   },
   timeSmall: {

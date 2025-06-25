@@ -8,18 +8,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: 'transparent',
-          borderTopColor: 'transparent',
-          borderTopWidth: 0,
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 80,
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          elevation: 0,
-          shadowOpacity: 0,
+          display: 'none',
         },
         tabBarBackground: () => (
           <BlurView 
@@ -54,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Home',
           tabBarIcon: ({ size, color }: { size: number; color: string }) => (
             <Home size={size} color={color} />
           ),

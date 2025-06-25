@@ -9,6 +9,8 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  color?: string;
+  textColor?: string;
 }
 
 export default function Button({
@@ -19,6 +21,8 @@ export default function Button({
   disabled = false,
   style,
   textStyle,
+  color,
+  textColor,
 }: ButtonProps) {
   const getButtonStyle = (): ViewStyle[] => {
     const baseStyle: ViewStyle[] = [styles.button, styles[`${size}Button`]];
@@ -66,12 +70,27 @@ export default function Button({
 
   return (
     <TouchableOpacity
-      style={[...getButtonStyle(), style]}
+      style={[
+        ...getButtonStyle(),
+        variant === 'primary' && { backgroundColor: color || '#7C3AED' },
+        variant === 'secondary' && { backgroundColor: color || '#fff', borderColor: color || '#7C3AED' },
+        variant === 'ghost' && { backgroundColor: 'transparent', borderColor: color || '#7C3AED' },
+        style,
+      ]}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.8}
     >
-      <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
+      <Text
+        style={[
+          ...getTextStyle(),
+          variant === 'primary' && { color: textColor || '#fff' },
+          variant === 'secondary' && { color: textColor || '#7C3AED' },
+          variant === 'ghost' && { color: textColor || '#7C3AED' },
+        ]}
+      >
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 }

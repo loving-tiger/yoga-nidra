@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, Platform, processColor } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -7,40 +7,51 @@ import Animated, {
   withRepeat,
   withTiming,
   interpolateColor,
-  withDelay,
+  // withDelay, // 未使用，移除
 } from 'react-native-reanimated';
+import { useTheme } from './ThemeContext';
+import tinycolor from 'tinycolor2';
 
 const { width, height } = Dimensions.get('window');
 
+const toRgba = (hex: string, alpha: number) =>
+  tinycolor(hex).setAlpha(alpha).toRgbString(); // "rgba(124,58,237,0.4)"
+
+function isValidHex(color: string) {
+  return /^#([0-9A-F]{6})$/i.test(color);
+}
+
 export default function AnimatedBackground() {
+  const { themeColor } = useTheme();
+  // iOS Expo 上 interpolateColor 可能会崩溃，做平台兼容处理
   const animationProgress = useSharedValue(0);
-  
-  // Floating bubbles
+
+  // 气泡动画
   const bubble1X = useSharedValue(width * 0.2);
   const bubble1Y = useSharedValue(height * 0.8);
   const bubble1Scale = useSharedValue(0.8);
-  
+
   const bubble2X = useSharedValue(width * 0.8);
   const bubble2Y = useSharedValue(height * 0.3);
   const bubble2Scale = useSharedValue(1.2);
-  
+
   const bubble3X = useSharedValue(width * 0.1);
   const bubble3Y = useSharedValue(height * 0.4);
   const bubble3Scale = useSharedValue(0.6);
-  
+
   const bubble4X = useSharedValue(width * 0.7);
   const bubble4Y = useSharedValue(height * 0.7);
   const bubble4Scale = useSharedValue(1.0);
 
   useEffect(() => {
-    // Background color animation
+    // 背景动画
     animationProgress.value = withRepeat(
       withTiming(1, { duration: 8000 }),
       -1,
       true
     );
-    
-    // Bubble 1 animation
+
+    // 气泡动画
     bubble1X.value = withRepeat(
       withTiming(width * 0.8, { duration: 12000 }),
       -1,
@@ -56,8 +67,7 @@ export default function AnimatedBackground() {
       -1,
       true
     );
-    
-    // Bubble 2 animation
+
     bubble2X.value = withRepeat(
       withTiming(width * 0.2, { duration: 18000 }),
       -1,
@@ -73,8 +83,7 @@ export default function AnimatedBackground() {
       -1,
       true
     );
-    
-    // Bubble 3 animation
+
     bubble3X.value = withRepeat(
       withTiming(width * 0.9, { duration: 20000 }),
       -1,
@@ -90,8 +99,7 @@ export default function AnimatedBackground() {
       -1,
       true
     );
-    
-    // Bubble 4 animation
+
     bubble4X.value = withRepeat(
       withTiming(width * 0.3, { duration: 16000 }),
       -1,
@@ -109,16 +117,14 @@ export default function AnimatedBackground() {
     );
   }, []);
 
+  // Use static colors for animated background
   const animatedStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       animationProgress.value,
       [0, 0.33, 0.66, 1],
       ['#F3E8FF', '#E9D5FF', '#DDD6FE', '#C4B5FD']
     );
-
-    return {
-      backgroundColor,
-    };
+    return { backgroundColor };
   });
 
   const gradientStyle = useAnimatedStyle(() => {
@@ -158,6 +164,14 @@ export default function AnimatedBackground() {
     ],
   }));
 
+  // Bubble colors (static)
+  const bubbleColors = [
+    'rgba(147, 51, 234, 0.3)',
+    'rgba(168, 85, 247, 0.4)',
+    'rgba(196, 181, 253, 0.3)',
+    'rgba(124, 58, 237, 0.2)',
+  ];
+
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.background, animatedStyle]} />
@@ -169,12 +183,11 @@ export default function AnimatedBackground() {
           end={{ x: 1, y: 1 }}
         />
       </Animated.View>
-      
       {/* Floating bubbles */}
-      <Animated.View style={[styles.bubble, styles.bubble1, bubble1Style]} />
-      <Animated.View style={[styles.bubble, styles.bubble2, bubble2Style]} />
-      <Animated.View style={[styles.bubble, styles.bubble3, bubble3Style]} />
-      <Animated.View style={[styles.bubble, styles.bubble4, bubble4Style]} />
+      <Animated.View style={[styles.bubble, { backgroundColor: bubbleColors[0], width: 120, height: 120 }, bubble1Style]} />
+      <Animated.View style={[styles.bubble, { backgroundColor: bubbleColors[1], width: 80, height: 80 }, bubble2Style]} />
+      <Animated.View style={[styles.bubble, { backgroundColor: bubbleColors[2], width: 60, height: 60 }, bubble3Style]} />
+      <Animated.View style={[styles.bubble, { backgroundColor: bubbleColors[3], width: 100, height: 100 }, bubble4Style]} />
     </View>
   );
 }
