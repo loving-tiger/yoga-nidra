@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated as RNAnimated, Dimensions, Pressable, Modal, View as RNView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated as RNAnimated, Dimensions, Pressable, Modal, View as RNView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AnimatedBackground from '@/components/AnimatedBackground';
 import { AudioService } from '@/services/AudioService';
@@ -10,7 +10,8 @@ import Svg, { Polygon, Rect } from 'react-native-svg';
 import WheelColorPicker from 'react-native-wheel-color-picker';
 import { useTheme } from '@/components/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
+// Remove Slider import, we'll use a custom web progress bar
+// import Slider from '@react-native-community/slider';
 import Button from '@/components/Button';
 import DateTimePicker from '@react-native-community/datetimepicker';
 // @ts-ignore
@@ -101,6 +102,7 @@ export default function DashboardScreen() {
   const lastSeekPosition = useRef<number | null>(null);
   const { themeColor, setThemeColor, lightness, setLightness, colors } = useTheme();
   const [colorModalVisible, setColorModalVisible] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Hide alarm tab for now
   // const [settingsTab, setSettingsTab] = useState<'color' | 'alarm'>('color');
@@ -121,12 +123,11 @@ export default function DashboardScreen() {
     let interval: ReturnType<typeof setInterval> | undefined;
     if (showControls && !isSeeking) {
       interval = setInterval(async () => {
-        if (AudioService['sound']) {
-          const status = await AudioService['sound'].getStatusAsync();
-          if (status.isLoaded) {
-            setProgress(status.positionMillis);
-            setDuration(status.durationMillis || 1);
-          }
+        const status = await AudioService.getStatusAsync();
+        // console.log('[Progress Poll]', status);
+        if (status.isLoaded) {
+          setProgress(status.positionMillis);
+          setDuration(status.durationMillis || 1);
         }
       }, 300);
     }
@@ -193,14 +194,12 @@ export default function DashboardScreen() {
   };
 
   const handleSeek = async (seconds: number) => {
-    if (AudioService['sound']) {
-      const status = await AudioService['sound'].getStatusAsync();
-      if (status.isLoaded && typeof status.durationMillis === 'number') {
-        let newPosition = status.positionMillis + seconds * 1000;
-        newPosition = Math.max(0, Math.min(newPosition, status.durationMillis));
-        await AudioService['sound'].setPositionAsync(newPosition);
-        setProgress(newPosition);
-      }
+    const status = await AudioService.getStatusAsync();
+    if (status.isLoaded && typeof status.durationMillis === 'number') {
+      let newPosition = status.positionMillis + seconds * 1000;
+      newPosition = Math.max(0, Math.min(newPosition, status.durationMillis));
+      await AudioService.setPositionAsync(newPosition);
+      setProgress(newPosition);
     }
   };
 
@@ -210,6 +209,209 @@ export default function DashboardScreen() {
     setIsPlaying(false);
     setProgress(0);
   };
+
+  // --- Custom Web Progress Bar Handlers ---
+  // These handlers allow click and drag on the progress bar for web.
+  const [webDragging, setWebDragging] = useState(false);
+  const [webDragX, setWebDragX] = useState<number | null>(null);
+
+  // Helper to get percent from mouse event
+  const getWebBarPercent = (evt: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const rect = evt.currentTarget.getBoundingClientRect();
+    const x = evt.clientX - rect.left;
+    const percent = Math.max(0, Math.min(x, PROGRESS_BAR_WIDTH)) / PROGRESS_BAR_WIDTH;
+    return percent;
+  };
+
+  // Mouse down: start drag and set position
+  const handleWebBarMouseDown = async (evt: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (duration <= 1) return;
+    setWebDragging(true);
+    const percent = getWebBarPercent(evt);
+    const newPosition = percent * duration;
+    setProgress(newPosition);
+    setIsSeeking(true);
+    setWebDragX(percent * PROGRESS_BAR_WIDTH);
+    await AudioService.setPositionAsync(newPosition);
+    // Add mousemove/mouseup listeners to window for drag
+    window.addEventListener('mousemove', handleWebBarMouseMove);
+    window.addEventListener('mouseup', handleWebBarMouseUp);
+  };
+
+  // Mouse move: update preview and progress
+  const handleWebBarMouseMove = async (evt: MouseEvent) => {
+    if (!webDragging || duration <= 1) return;
+    // Find the progress bar element
+    const bar = document.getElementById('web-progress-bar');
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    const x = evt.clientX - rect.left;
+    const percent = Math.max(0, Math.min(x, PROGRESS_BAR_WIDTH)) / PROGRESS_BAR_WIDTH;
+    const newPosition = percent * duration;
+    setProgress(newPosition);
+    setWebDragX(percent * PROGRESS_BAR_WIDTH);
+    setIsSeeking(true);
+    // Don't set position on every move, only on mouse up
+  };
+
+  // Mouse up: finish drag and set position
+  const handleWebBarMouseUp = async (evt: MouseEvent) => {
+    if (!webDragging || duration <= 1) return;
+    setWebDragging(false);
+    setIsSeeking(false);
+    setWebDragX(null);
+    // Find the progress bar element
+    const bar = document.getElementById('web-progress-bar');
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    const x = evt.clientX - rect.left;
+    const percent = Math.max(0, Math.min(x, PROGRESS_BAR_WIDTH)) / PROGRESS_BAR_WIDTH;
+    const newPosition = percent * duration;
+    setProgress(newPosition);
+    await AudioService.setPositionAsync(newPosition);
+    // Remove listeners
+    window.removeEventListener('mousemove', handleWebBarMouseMove);
+    window.removeEventListener('mouseup', handleWebBarMouseUp);
+  };
+
+  // --- End Custom Web Progress Bar Handlers ---
+
+  const ProgressBarComponent = Platform.OS === 'web' ? (
+    <div
+      id="web-progress-bar"
+      style={{
+        width: PROGRESS_BAR_WIDTH,
+        height: 32,
+        position: 'relative',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        userSelect: 'none',
+      }}
+      onMouseDown={handleWebBarMouseDown}
+      // No onMouseMove/onMouseUp here, handled globally for drag
+    >
+      <div
+        style={{
+          height: 8,
+          width: PROGRESS_BAR_WIDTH,
+          backgroundColor: colors.card,
+          borderRadius: 6,
+          margin: '0 10px',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        <div
+          style={{
+            height: 8,
+            backgroundColor: colors.button,
+            borderRadius: 6,
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: `${((progress / duration) * PROGRESS_BAR_WIDTH) || 0}px`,
+            transition: webDragging ? 'none' : 'width 0.1s',
+          }}
+        />
+        {/* Thumb */}
+        <div
+          style={{
+            position: 'absolute',
+            left: `${((progress / duration) * PROGRESS_BAR_WIDTH) - 8 || 0}px`,
+            top: -4,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: colors.button,
+            border: `2px solid ${colors.card}`,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+            pointerEvents: 'none',
+            transition: webDragging ? 'none' : 'left 0.1s',
+          }}
+        />
+      </div>
+      {/* Seek callout on drag */}
+      {webDragging && webDragX !== null && (
+        <div
+          style={{
+            position: 'absolute',
+            left: webDragX - 30,
+            bottom: 36,
+            width: 60,
+            height: 28,
+            backgroundColor: colors.card,
+            borderRadius: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+            display: 'flex',
+            border: `1px solid ${colors.button}`,
+            zIndex: 10,
+            boxShadow: '0 2px 8px rgba(88,28,135,0.15)',
+          }}
+        >
+          <span style={{ color: colors.text, fontWeight: 600, fontSize: 13 }}>
+            {formatTime(progress)}
+          </span>
+        </div>
+      )}
+    </div>
+  ) : (
+    <Pressable
+      style={styles.progressTouchArea}
+      onPress={async (evt) => {
+        if (duration > 1) {
+          const { locationX } = evt.nativeEvent;
+          const x = Math.max(0, Math.min(locationX, PROGRESS_BAR_WIDTH));
+          const percent = x / PROGRESS_BAR_WIDTH;
+          const newPosition = percent * duration;
+          setProgress(newPosition);
+          await AudioService.setPositionAsync(newPosition);
+        }
+      }}
+      onPressIn={(evt: any) => {
+        if (duration > 1) {
+          const { locationX } = evt.nativeEvent;
+          const x = Math.max(0, Math.min(locationX, PROGRESS_BAR_WIDTH));
+          const percent = x / PROGRESS_BAR_WIDTH;
+          const previewTime = percent * duration;
+          setIsSeeking(true);
+          setSeekPreview({ x, time: previewTime });
+        }
+      }}
+      onPressOut={async (evt: any) => {
+        setIsSeeking(false);
+        setSeekPreview(null);
+        if (duration > 1) {
+          const { locationX } = evt.nativeEvent;
+          const x = Math.max(0, Math.min(locationX, PROGRESS_BAR_WIDTH));
+          const percent = x / PROGRESS_BAR_WIDTH;
+          const newPosition = percent * duration;
+          setProgress(newPosition);
+          await AudioService.setPositionAsync(newPosition);
+        }
+      }}
+      onTouchMove={(evt: any) => {
+        if (duration > 1) {
+          const touch = evt.nativeEvent.touches[0];
+          if (!touch) return;
+          const x = Math.max(0, Math.min(touch.locationX, PROGRESS_BAR_WIDTH));
+          const percent = x / PROGRESS_BAR_WIDTH;
+          const previewTime = percent * duration;
+          setSeekPreview({ x, time: previewTime });
+        }
+      }}
+    >
+      <View style={[styles.progressBar, { backgroundColor: colors.card }] }>
+        <View style={[styles.progressFill, { backgroundColor: colors.button, width: (progress / duration) * PROGRESS_BAR_WIDTH }]} />
+      </View>
+      {isSeeking && seekPreview && (
+        <View style={[styles.seekCallout, { left: seekPreview.x - 30, backgroundColor: colors.card, borderColor: colors.button }]}> 
+          <Text style={[styles.seekCalloutText, { color: colors.text }]}>{formatTime(seekPreview.time)}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -243,60 +445,7 @@ export default function DashboardScreen() {
           <View style={styles.progressBarContainer}>
             <Text style={[styles.progressTime, { color: colors.text }]}>{formatTime(progress)}</Text>
             <View style={styles.progressBarWrapper}>
-              <Pressable
-                style={styles.progressTouchArea}
-                onPress={async (evt) => {
-                  if (duration > 1 && AudioService['sound']) {
-                    const { locationX } = evt.nativeEvent;
-                    const x = Math.max(0, Math.min(locationX, PROGRESS_BAR_WIDTH));
-                    const percent = x / PROGRESS_BAR_WIDTH;
-                    const newPosition = percent * duration;
-                    setProgress(newPosition);
-                    await AudioService['sound'].setPositionAsync(newPosition);
-                  }
-                }}
-                onPressIn={(evt: any) => {
-                  if (duration > 1) {
-                    const { locationX } = evt.nativeEvent;
-                    const x = Math.max(0, Math.min(locationX, PROGRESS_BAR_WIDTH));
-                    const percent = x / PROGRESS_BAR_WIDTH;
-                    const previewTime = percent * duration;
-                    setIsSeeking(true);
-                    setSeekPreview({ x, time: previewTime });
-                  }
-                }}
-                onPressOut={async (evt: any) => {
-                  setIsSeeking(false);
-                  setSeekPreview(null);
-                  if (duration > 1 && AudioService['sound']) {
-                    const { locationX } = evt.nativeEvent;
-                    const x = Math.max(0, Math.min(locationX, PROGRESS_BAR_WIDTH));
-                    const percent = x / PROGRESS_BAR_WIDTH;
-                    const newPosition = percent * duration;
-                    setProgress(newPosition);
-                    await AudioService['sound'].setPositionAsync(newPosition);
-                  }
-                }}
-                onTouchMove={(evt: any) => {
-                  if (duration > 1) {
-                    const touch = evt.nativeEvent.touches[0];
-                    if (!touch) return;
-                    const x = Math.max(0, Math.min(touch.locationX, PROGRESS_BAR_WIDTH));
-                    const percent = x / PROGRESS_BAR_WIDTH;
-                    const previewTime = percent * duration;
-                    setSeekPreview({ x, time: previewTime });
-                  }
-                }}
-              >
-                <View style={[styles.progressBar, { backgroundColor: colors.card }] }>
-                  <View style={[styles.progressFill, { backgroundColor: colors.button, width: (progress / duration) * PROGRESS_BAR_WIDTH }]} />
-                </View>
-                {isSeeking && seekPreview && (
-                  <View style={[styles.seekCallout, { left: seekPreview.x - 30, backgroundColor: colors.card, borderColor: colors.button }]}> 
-                    <Text style={[styles.seekCalloutText, { color: colors.text }]}>{formatTime(seekPreview.time)}</Text>
-                  </View>
-                )}
-              </Pressable>
+              {ProgressBarComponent}
             </View>
             <Text style={[styles.progressTime, { color: colors.text }]}>{formatTime(duration)}</Text>
           </View>

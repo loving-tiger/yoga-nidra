@@ -14,6 +14,8 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
+          "background-processing",
+          "audio",
           "background-processing"
         ],
         "NSMicrophoneUsageDescription": "This app does not use the microphone."
@@ -41,6 +43,16 @@
     },
     "android": {
       "package": "com.wakeupbuddy.app"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "544b82ba-a715-4e3c-8852-7ae574accfed"
+      }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/544b82ba-a715-4e3c-8852-7ae574accfed"
     }
   }
 }

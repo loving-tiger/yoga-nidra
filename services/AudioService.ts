@@ -13,9 +13,14 @@ export interface AudioRoutine {
 export class AudioService {
   private static sound: Audio.Sound | null = null;
   private static isPlaying = false;
+  // Web audio elements
+  private static webBowlAudio: HTMLAudioElement | null = null;
+  private static webMainAudio: HTMLAudioElement | null = null;
+  static webDebugInterval: ReturnType<typeof setInterval> | null = null;
 
   static async initializeAudio(): Promise<void> {
     if (Platform.OS === 'web') {
+      // No-op for now
       return;
     }
     try {
@@ -35,11 +40,32 @@ export class AudioService {
     try {
       await this.stopAudio();
       if (Platform.OS === 'web') {
-        console.log('Playing routine:', routine.title);
+        // Play Tibetan Bowl, then ElevenLabs
+        this.webBowlAudio = new window.Audio('/assets/audio/Tibetan%20Bowl%20Sound%201.mp3');
+        this.webMainAudio = new window.Audio('/assets/audio/ElevenLabs.mp3');
         this.isPlaying = true;
+        this.webBowlAudio.volume = 0.8;
+        this.webMainAudio.volume = 1.0;
+        this.webBowlAudio.onended = () => {
+          if (this.webMainAudio) {
+            this.webMainAudio.play();
+          }
+        };
+        this.webMainAudio.onended = () => {
+          this.isPlaying = false;
+        };
+        this.webBowlAudio.play();
+        // Debug: log currentTime every 500ms
+        if (this.webDebugInterval) clearInterval(this.webDebugInterval);
+        this.webDebugInterval = setInterval(() => {
+          const bowl = this.webBowlAudio;
+          const main = this.webMainAudio;
+          console.log('[AudioService][DEBUG] Bowl:', bowl ? { currentTime: bowl.currentTime, duration: bowl.duration, paused: bowl.paused } : null);
+          console.log('[AudioService][DEBUG] Main:', main ? { currentTime: main.currentTime, duration: main.duration, paused: main.paused } : null);
+        }, 500);
         return true;
       }
-      // Play the Tibetan Bowl Sound 1 first
+      // Native: Play the Tibetan Bowl Sound 1 first
       const bowlSound = await Audio.Sound.createAsync(
         require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
         {
@@ -85,7 +111,13 @@ export class AudioService {
 
   static async playSingingBowlStart(): Promise<void> {
     try {
-      if (Platform.OS === 'web') return;
+      if (Platform.OS === 'web') {
+        const audio = new window.Audio('/assets/audio/Tibetan%20Bowl%20Sound%201.mp3');
+        audio.volume = 0.6;
+        audio.play();
+        audio.onended = () => audio.remove();
+        return;
+      }
       const { sound } = await Audio.Sound.createAsync(
         require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
         {
@@ -106,7 +138,13 @@ export class AudioService {
 
   static async playSingingBowlEnd(): Promise<void> {
     try {
-      if (Platform.OS === 'web') return;
+      if (Platform.OS === 'web') {
+        const audio = new window.Audio('/assets/audio/Tibetan%20Bowl%20Sound%201.mp3');
+        audio.volume = 0.7;
+        audio.play();
+        audio.onended = () => audio.remove();
+        return;
+      }
       const { sound } = await Audio.Sound.createAsync(
         require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
         {
@@ -126,6 +164,22 @@ export class AudioService {
   }
 
   static async stopAudio(): Promise<void> {
+    if (Platform.OS === 'web') {
+      if (this.webDebugInterval) clearInterval(this.webDebugInterval);
+      this.webDebugInterval = null;
+      if (this.webBowlAudio) {
+        this.webBowlAudio.pause();
+        this.webBowlAudio.currentTime = 0;
+        this.webBowlAudio = null;
+      }
+      if (this.webMainAudio) {
+        this.webMainAudio.pause();
+        this.webMainAudio.currentTime = 0;
+        this.webMainAudio = null;
+      }
+      this.isPlaying = false;
+      return;
+    }
     if (this.sound) {
       try {
         await this.sound.stopAsync();
@@ -140,6 +194,16 @@ export class AudioService {
   }
 
   static async pauseAudio(): Promise<void> {
+    if (Platform.OS === 'web') {
+      if (this.webBowlAudio && !this.webBowlAudio.paused) {
+        this.webBowlAudio.pause();
+      }
+      if (this.webMainAudio && !this.webMainAudio.paused) {
+        this.webMainAudio.pause();
+      }
+      this.isPlaying = false;
+      return;
+    }
     if (this.sound && this.isPlaying) {
       try {
         await this.sound.pauseAsync();
@@ -151,6 +215,19 @@ export class AudioService {
   }
 
   static async resumeAudio(): Promise<void> {
+    if (Platform.OS === 'web') {
+      if (this.webBowlAudio && this.webBowlAudio.paused && this.webBowlAudio.currentTime < this.webBowlAudio.duration) {
+        this.webBowlAudio.play();
+        this.isPlaying = true;
+        return;
+      }
+      if (this.webMainAudio && this.webMainAudio.paused && this.webMainAudio.currentTime < this.webMainAudio.duration) {
+        this.webMainAudio.play();
+        this.isPlaying = true;
+        return;
+      }
+      return;
+    }
     if (this.sound && !this.isPlaying) {
       try {
         await this.sound.playAsync();
@@ -163,5 +240,88 @@ export class AudioService {
 
   static getIsPlaying(): boolean {
     return this.isPlaying;
+  }
+
+  static getCurrentWebAudio(): HTMLAudioElement | null {
+    // Prefer main audio if it has started or is not ended
+    if (this.webMainAudio && this.webMainAudio.currentTime > 0 && this.webMainAudio.currentTime < this.webMainAudio.duration) {
+      console.log('[AudioService] Using webMainAudio', {
+        currentTime: this.webMainAudio.currentTime,
+        duration: this.webMainAudio.duration,
+        paused: this.webMainAudio.paused
+      });
+      return this.webMainAudio;
+    }
+    // If bowl audio is still playing or not finished
+    if (this.webBowlAudio && this.webBowlAudio.currentTime < this.webBowlAudio.duration) {
+      console.log('[AudioService] Using webBowlAudio', {
+        currentTime: this.webBowlAudio.currentTime,
+        duration: this.webBowlAudio.duration,
+        paused: this.webBowlAudio.paused
+      });
+      return this.webBowlAudio;
+    }
+    // If main audio exists, use it
+    if (this.webMainAudio) {
+      console.log('[AudioService] Fallback to webMainAudio', {
+        currentTime: this.webMainAudio.currentTime,
+        duration: this.webMainAudio.duration,
+        paused: this.webMainAudio.paused
+      });
+      return this.webMainAudio;
+    }
+    // If bowl audio exists, use it
+    if (this.webBowlAudio) {
+      console.log('[AudioService] Fallback to webBowlAudio', {
+        currentTime: this.webBowlAudio.currentTime,
+        duration: this.webBowlAudio.duration,
+        paused: this.webBowlAudio.paused
+      });
+      return this.webBowlAudio;
+    }
+    console.log('[AudioService] No web audio element found');
+    return null;
+  }
+
+  static async setPositionAsync(positionMillis: number): Promise<void> {
+    if (Platform.OS === 'web') {
+      const audio = this.getCurrentWebAudio();
+      if (audio) {
+        console.log('[AudioService] setPositionAsync', { positionMillis, audio });
+        audio.currentTime = positionMillis / 1000;
+      }
+      return;
+    }
+    if (this.sound) {
+      await this.sound.setPositionAsync(positionMillis);
+    }
+  }
+
+  static async getStatusAsync(): Promise<{ isLoaded: boolean; positionMillis: number; durationMillis: number }> {
+    if (Platform.OS === 'web') {
+      const audio = this.getCurrentWebAudio();
+      if (audio) {
+        console.log('[AudioService] getStatusAsync', { currentTime: audio.currentTime, duration: audio.duration, paused: audio.paused });
+        return {
+          isLoaded: true,
+          positionMillis: audio.currentTime * 1000,
+          durationMillis: audio.duration * 1000 || 1,
+        };
+      }
+      return { isLoaded: false, positionMillis: 0, durationMillis: 1 };
+    }
+    if (this.sound) {
+      const status = await this.sound.getStatusAsync();
+      if (status.isLoaded) {
+        return {
+          isLoaded: true,
+          positionMillis: status.positionMillis,
+          durationMillis: status.durationMillis || 1,
+        };
+      } else {
+        return { isLoaded: false, positionMillis: 0, durationMillis: 1 };
+      }
+    }
+    return { isLoaded: false, positionMillis: 0, durationMillis: 1 };
   }
 }
