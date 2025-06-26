@@ -10,8 +10,7 @@ import Svg, { Polygon, Rect } from 'react-native-svg';
 import WheelColorPicker from 'react-native-wheel-color-picker';
 import { useTheme } from '@/components/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-// Remove Slider import, we'll use a custom web progress bar
-// import Slider from '@react-native-community/slider';
+import Slider from '@react-native-community/slider';
 import Button from '@/components/Button';
 import DateTimePicker from '@react-native-community/datetimepicker';
 // @ts-ignore
@@ -312,22 +311,6 @@ export default function DashboardScreen() {
             top: 0,
             width: `${((progress / duration) * PROGRESS_BAR_WIDTH) || 0}px`,
             transition: webDragging ? 'none' : 'width 0.1s',
-          }}
-        />
-        {/* Thumb */}
-        <div
-          style={{
-            position: 'absolute',
-            left: `${((progress / duration) * PROGRESS_BAR_WIDTH) - 8 || 0}px`,
-            top: -4,
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            backgroundColor: colors.button,
-            border: `2px solid ${colors.card}`,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-            pointerEvents: 'none',
-            transition: webDragging ? 'none' : 'left 0.1s',
           }}
         />
       </div>

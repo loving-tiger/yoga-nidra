@@ -47,7 +47,7 @@ node_modules/
 .expo-shared/
 *.expo
 
-# --- iOS / Android build artifacts (if you “prebuild” later) ---
+# --- iOS / Android build artifacts (if you "prebuild" later) ---
 ios/build/
 android/app/build/
 *.xcworkspace
@@ -64,3 +64,5 @@ build/
 
 # --- macOS ---
 .DS_Store
+
+services/SupabaseService.ts

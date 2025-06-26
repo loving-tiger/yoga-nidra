@@ -41,7 +41,7 @@ export class AudioService {
       await this.stopAudio();
       if (Platform.OS === 'web') {
         // Play Tibetan Bowl, then ElevenLabs
-        this.webBowlAudio = new window.Audio('/assets/audio/Tibetan%20Bowl%20Sound%201.mp3');
+        this.webBowlAudio = new window.Audio('/assets/audio/TibetanBowlSound1.mp3');
         this.webMainAudio = new window.Audio('/assets/audio/ElevenLabs.mp3');
         this.isPlaying = true;
         this.webBowlAudio.volume = 0.8;
@@ -67,7 +67,7 @@ export class AudioService {
       }
       // Native: Play the Tibetan Bowl Sound 1 first
       const bowlSound = await Audio.Sound.createAsync(
-        require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
+        getAudioSource('Tibetan Bowl Sound 1.mp3'),
         {
           shouldPlay: true,
           isLooping: false,
@@ -81,7 +81,7 @@ export class AudioService {
         if (status.isLoaded && status.didJustFinish) {
           // Play the ElevenLabs.mp3 audio immediately after
           const elevenLabsSound = await Audio.Sound.createAsync(
-            require('../assets/audio/ElevenLabs.mp3'),
+            getAudioSource('ElevenLabs.mp3'),
             {
               shouldPlay: true,
               isLooping: false,
@@ -119,7 +119,7 @@ export class AudioService {
         return;
       }
       const { sound } = await Audio.Sound.createAsync(
-        require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
+        getAudioSource('Tibetan Bowl Sound 1.mp3'),
         {
           shouldPlay: true,
           isLooping: false,
@@ -146,7 +146,7 @@ export class AudioService {
         return;
       }
       const { sound } = await Audio.Sound.createAsync(
-        require('../assets/audio/Tibetan Bowl Sound 1.mp3'),
+        getAudioSource('Tibetan Bowl Sound 1.mp3'),
         {
           shouldPlay: true,
           isLooping: false,
@@ -325,3 +325,19 @@ export class AudioService {
     return { isLoaded: false, positionMillis: 0, durationMillis: 1 };
   }
 }
+
+const getAudioSource = (filename: string) => {
+  if (Platform.OS === 'web') {
+    return `/assets/audio/${filename}`;
+  } else {
+    switch (filename) {
+      case 'ElevenLabs.mp3':
+        return require('../assets/audio/ElevenLabs.mp3');
+      case 'Tibetan Bowl Sound 1.mp3':
+        return require('../assets/audio/Tibetan Bowl Sound 1.mp3');
+      // Add more cases as needed
+      default:
+        throw new Error('Unknown audio file');
+    }
+  }
+};
