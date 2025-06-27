@@ -481,27 +481,25 @@ export default function DashboardScreen() {
         <RNView style={styles.modalOverlay}>
           <RNView style={[styles.modalContent, { backgroundColor: colors.card }]}>
             {/* Tab Switcher */}
-            <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+            <View style={styles.tabSwitcherRow}>
               <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderBottomWidth: 2,
-                  borderBottomColor: settingsTab === 'color' ? themeColor : 'transparent',
-                  alignItems: 'center',
-                }}
+                style={[
+                  styles.tabSwitcherButton,
+                  {
+                    borderBottomColor: settingsTab === 'color' ? themeColor : 'transparent',
+                  },
+                ]}
                 onPress={() => setSettingsTab('color')}
               >
                 <Text style={{ color: settingsTab === 'color' ? themeColor : colors.text, fontWeight: '600' }}>Color</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderBottomWidth: 2,
-                  borderBottomColor: settingsTab === 'voice' ? themeColor : 'transparent',
-                  alignItems: 'center',
-                }}
+                style={[
+                  styles.tabSwitcherButton,
+                  {
+                    borderBottomColor: settingsTab === 'voice' ? themeColor : 'transparent',
+                  },
+                ]}
                 onPress={() => setSettingsTab('voice')}
               >
                 <Text style={{ color: settingsTab === 'voice' ? themeColor : colors.text, fontWeight: '600' }}>Voice</Text>
@@ -775,5 +773,18 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
+  },
+  // Added for better tab switcher spacing
+  tabSwitcherRow: {
+    flexDirection: 'row',
+    marginBottom: 32, // increased from 20 for more space below tabs
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  tabSwitcherButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    alignItems: 'center',
   },
 }); 
