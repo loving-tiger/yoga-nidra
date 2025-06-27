@@ -139,9 +139,11 @@ export default function DashboardScreen() {
     AudioService.initializeAudio();
   }, []);
 
+  // IMPORTANT: For web, call AudioService.playRoutine as directly as possible after user gesture
   const handleArise = async () => {
     setIsLoading(true);
     try {
+      // For web, do not await anything before playRoutine to avoid breaking the gesture chain
       const success = await AudioService.playRoutine(DEFAULT_ROUTINES[0]);
       if (success) {
         setShowControls(true);

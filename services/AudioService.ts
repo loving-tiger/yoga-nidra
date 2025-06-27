@@ -38,23 +38,40 @@ export class AudioService {
 
   static async playRoutine(routine: AudioRoutine): Promise<boolean> {
     try {
-      await this.stopAudio();
       if (Platform.OS === 'web') {
-        // Play Tibetan Bowl, then ElevenLabs
-        this.webBowlAudio = new window.Audio('/assets/audio/TibetanBowlSound1.mp3');
+        // Stop any existing audio synchronously (avoid async before play)
+        if (this.webDebugInterval) clearInterval(this.webDebugInterval);
+        this.webDebugInterval = null;
+        if (this.webBowlAudio) {
+          this.webBowlAudio.pause();
+          this.webBowlAudio.currentTime = 0;
+          this.webBowlAudio = null;
+        }
+        if (this.webMainAudio) {
+          this.webMainAudio.pause();
+          this.webMainAudio.currentTime = 0;
+          this.webMainAudio = null;
+        }
+        // Use correct file names and paths
+        this.webBowlAudio = new window.Audio('/assets/audio/Tibetan Bowl Sound 1.mp3');
         this.webMainAudio = new window.Audio('/assets/audio/ElevenLabs.mp3');
         this.isPlaying = true;
         this.webBowlAudio.volume = 0.8;
         this.webMainAudio.volume = 1.0;
         this.webBowlAudio.onended = () => {
           if (this.webMainAudio) {
-            this.webMainAudio.play();
+            this.webMainAudio.play().catch((e) => {
+              console.warn('Main audio autoplay failed:', e);
+            });
           }
         };
         this.webMainAudio.onended = () => {
           this.isPlaying = false;
         };
-        this.webBowlAudio.play();
+        // Play bowl audio immediately after user gesture
+        this.webBowlAudio.play().catch((e) => {
+          console.warn('Bowl audio autoplay failed:', e);
+        });
         // Debug: log currentTime every 500ms
         if (this.webDebugInterval) clearInterval(this.webDebugInterval);
         this.webDebugInterval = setInterval(() => {
@@ -112,7 +129,7 @@ export class AudioService {
   static async playSingingBowlStart(): Promise<void> {
     try {
       if (Platform.OS === 'web') {
-        const audio = new window.Audio('/assets/audio/Tibetan%20Bowl%20Sound%201.mp3');
+        const audio = new window.Audio('/assets/audio/Tibetan Bowl Sound 1.mp3');
         audio.volume = 0.6;
         audio.play();
         audio.onended = () => audio.remove();
@@ -139,7 +156,7 @@ export class AudioService {
   static async playSingingBowlEnd(): Promise<void> {
     try {
       if (Platform.OS === 'web') {
-        const audio = new window.Audio('/assets/audio/Tibetan%20Bowl%20Sound%201.mp3');
+        const audio = new window.Audio('/assets/audio/Tibetan Bowl Sound 1.mp3');
         audio.volume = 0.7;
         audio.play();
         audio.onended = () => audio.remove();
