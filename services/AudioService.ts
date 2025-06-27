@@ -17,6 +17,9 @@ export class AudioService {
   private static webBowlAudio: HTMLAudioElement | null = null;
   private static webMainAudio: HTMLAudioElement | null = null;
   static webDebugInterval: ReturnType<typeof setInterval> | null = null;
+  private static bowlDuration: number | null = null;
+  private static mainDuration: number | null = null;
+  private static currentlyPlaying: 'bowl' | 'main' | 'endBowl' | null = null;
 
   static async initializeAudio(): Promise<void> {
     if (Platform.OS === 'web') {
@@ -54,18 +57,33 @@ export class AudioService {
         }
         // Use correct file names and paths
         this.webBowlAudio = new window.Audio('/assets/audio/TibetanBowlSound1.mp3');
-        this.webMainAudio = new window.Audio('/assets/audio/ElevenLabs.mp3');
+        this.webMainAudio = new window.Audio('/assets/audio/ElevenLabsMatt.mp3');
         this.isPlaying = true;
+        this.currentlyPlaying = 'bowl';
         this.webBowlAudio.volume = 0.8;
         this.webMainAudio.volume = 1.0;
+        this.webBowlAudio.onloadedmetadata = () => {
+          AudioService.bowlDuration = this.webBowlAudio?.duration || null;
+        };
+        this.webMainAudio.onloadedmetadata = () => {
+          AudioService.mainDuration = this.webMainAudio?.duration || null;
+        };
         this.webBowlAudio.onended = () => {
           if (this.webMainAudio) {
+            this.currentlyPlaying = 'main';
             this.webMainAudio.play().catch((e) => {
               console.warn('Main audio autoplay failed:', e);
             });
           }
         };
         this.webMainAudio.onended = () => {
+          // Play Tibetan bowl sound again at the end
+          this.currentlyPlaying = 'endBowl';
+          const endBowl = new window.Audio('/assets/audio/TibetanBowlSound1.mp3');
+          endBowl.volume = 0.8;
+          endBowl.play().catch((e) => {
+            console.warn('End bowl audio autoplay failed:', e);
+          });
           this.isPlaying = false;
         };
         // Play bowl audio immediately after user gesture
@@ -94,11 +112,15 @@ export class AudioService {
       );
       this.sound = bowlSound.sound;
       this.isPlaying = true;
+      this.currentlyPlaying = 'bowl';
+      // Store bowl duration
+      const bowlStatus = await bowlSound.sound.getStatusAsync();
+      AudioService.bowlDuration = bowlStatus.isLoaded ? (bowlStatus.durationMillis || null) : null;
       bowlSound.sound.setOnPlaybackStatusUpdate(async (status) => {
         if (status.isLoaded && status.didJustFinish) {
-          // Play the ElevenLabs.mp3 audio immediately after
+          // Play the ElevenLabsMatt.mp3 audio immediately after
           const elevenLabsSound = await Audio.Sound.createAsync(
-            getAudioSource('ElevenLabs.mp3'),
+            getAudioSource('ElevenLabsMatt.mp3'),
             {
               shouldPlay: true,
               isLooping: false,
@@ -107,8 +129,29 @@ export class AudioService {
             }
           );
           this.sound = elevenLabsSound.sound;
+          this.currentlyPlaying = 'main';
+          // Store main duration
+          const mainStatus = await elevenLabsSound.sound.getStatusAsync();
+          AudioService.mainDuration = mainStatus.isLoaded ? (mainStatus.durationMillis || null) : null;
           elevenLabsSound.sound.setOnPlaybackStatusUpdate((status) => {
             if (status.isLoaded && status.didJustFinish) {
+              // Play Tibetan bowl sound again at the end
+              this.currentlyPlaying = 'endBowl';
+              Audio.Sound.createAsync(
+                getAudioSource('TibetanBowlSound1.mp3'),
+                {
+                  shouldPlay: true,
+                  isLooping: false,
+                  volume: 0.8,
+                  rate: 1.0,
+                }
+              ).then(({ sound }) => {
+                sound.setOnPlaybackStatusUpdate((status) => {
+                  if (status.isLoaded && status.didJustFinish) {
+                    sound.unloadAsync();
+                  }
+                });
+              });
               this.isPlaying = false;
               this.sound = null;
             }
@@ -317,23 +360,44 @@ export class AudioService {
   static async getStatusAsync(): Promise<{ isLoaded: boolean; positionMillis: number; durationMillis: number }> {
     if (Platform.OS === 'web') {
       const audio = this.getCurrentWebAudio();
+      let bowlDuration = AudioService.bowlDuration ? AudioService.bowlDuration * 1000 : 0;
+      let mainDuration = AudioService.mainDuration ? AudioService.mainDuration * 1000 : 0;
+      let positionMillis = 0;
+      let durationMillis = bowlDuration + mainDuration + bowlDuration;
       if (audio) {
-        console.log('[AudioService] getStatusAsync', { currentTime: audio.currentTime, duration: audio.duration, paused: audio.paused });
+        if (AudioService.currentlyPlaying === 'bowl') {
+          positionMillis = audio.currentTime * 1000;
+        } else if (AudioService.currentlyPlaying === 'main') {
+          positionMillis = bowlDuration + (audio.currentTime * 1000);
+        } else if (AudioService.currentlyPlaying === 'endBowl') {
+          positionMillis = bowlDuration + mainDuration + (audio.currentTime * 1000);
+        }
         return {
           isLoaded: true,
-          positionMillis: audio.currentTime * 1000,
-          durationMillis: audio.duration * 1000 || 1,
+          positionMillis,
+          durationMillis: durationMillis || 1,
         };
       }
       return { isLoaded: false, positionMillis: 0, durationMillis: 1 };
     }
     if (this.sound) {
       const status = await this.sound.getStatusAsync();
+      let bowlDuration = AudioService.bowlDuration || 0;
+      let mainDuration = AudioService.mainDuration || 0;
+      let positionMillis = 0;
+      let durationMillis = bowlDuration + mainDuration + bowlDuration;
       if (status.isLoaded) {
+        if (AudioService.currentlyPlaying === 'bowl') {
+          positionMillis = status.positionMillis;
+        } else if (AudioService.currentlyPlaying === 'main') {
+          positionMillis = bowlDuration + status.positionMillis;
+        } else if (AudioService.currentlyPlaying === 'endBowl') {
+          positionMillis = bowlDuration + mainDuration + status.positionMillis;
+        }
         return {
           isLoaded: true,
-          positionMillis: status.positionMillis,
-          durationMillis: status.durationMillis || 1,
+          positionMillis,
+          durationMillis: durationMillis || 1,
         };
       } else {
         return { isLoaded: false, positionMillis: 0, durationMillis: 1 };
@@ -348,8 +412,8 @@ const getAudioSource = (filename: string) => {
     return `/assets/audio/${filename}`;
   } else {
     switch (filename) {
-      case 'ElevenLabs.mp3':
-        return require('../assets/audio/ElevenLabs.mp3');
+      case 'ElevenLabsMatt.mp3':
+        return require('../assets/audio/ElevenLabsMatt.mp3');
       case 'TibetanBowlSound1.mp3':
         return require('../assets/audio/TibetanBowlSound1.mp3');
       // Add more cases as needed

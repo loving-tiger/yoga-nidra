@@ -139,6 +139,22 @@ export default function DashboardScreen() {
     AudioService.initializeAudio();
   }, []);
 
+  useEffect(() => {
+    if (!showControls) return;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    interval = setInterval(() => {
+      if (!AudioService.getIsPlaying()) {
+        setShowControls(false);
+        setIsPlaying(false);
+        setProgress(0);
+        setDuration(1);
+      }
+    }, 500);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [showControls]);
+
   // IMPORTANT: For web, call AudioService.playRoutine as directly as possible after user gesture
   const handleArise = async () => {
     setIsLoading(true);
