@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from '@/components/AuthContext';
 import { ThemeProvider } from '@/components/ThemeContext';
 import SignUpScreen from './signup'; // adjust path if needed
+import { VoiceProvider } from '@/components/VoiceContext';
 
 function RootLayoutNav() {
   const { session, loading } = useAuth();
@@ -22,10 +23,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
-    </ThemeProvider>
+    <VoiceProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+        </AuthProvider>
+      </ThemeProvider>
+    </VoiceProvider>
   );
 }

@@ -17,6 +17,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import tinycolor from 'tinycolor2';
 import { useAuth } from '@/components/AuthContext';
 import { saveAlarmTime } from '@/services/SupabaseService';
+import { useVoice } from '@/components/VoiceContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PROGRESS_BAR_WIDTH = Math.min(220, SCREEN_WIDTH * 0.7);
@@ -30,6 +31,11 @@ const PRESET_COLORS = [
   '#C7CEEA', // pastel lavender
   '#FFF1BA', // pastel yellow
   '#D4A5A5', // muted rose
+];
+
+const VOICES = [
+  { key: 'ElevenLabsMatt.mp3', label: 'Matt' },
+  { key: 'ElevenLabsZach.mp3', label: 'Zach' },
 ];
 
 function safeTinycolor(color: string) {
@@ -105,12 +111,14 @@ export default function DashboardScreen() {
 
   // Hide alarm tab for now
   // const [settingsTab, setSettingsTab] = useState<'color' | 'alarm'>('color');
-  const [settingsTab, setSettingsTab] = useState<'color'>('color');
+  const [settingsTab, setSettingsTab] = useState<'color' | 'voice'>('color');
 
   // Alarm state (hidden for now)
   const [alarmTime, setAlarmTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const { session } = useAuth();
+
+  const { voice, setVoice } = useVoice();
 
   useFocusEffect(
     useCallback(() => {
@@ -159,8 +167,7 @@ export default function DashboardScreen() {
   const handleArise = async () => {
     setIsLoading(true);
     try {
-      // For web, do not await anything before playRoutine to avoid breaking the gesture chain
-      const success = await AudioService.playRoutine(DEFAULT_ROUTINES[0]);
+      const success = await AudioService.playRoutine(DEFAULT_ROUTINES[0], voice);
       if (success) {
         setShowControls(true);
         setIsPlaying(true);
@@ -199,7 +206,7 @@ export default function DashboardScreen() {
       await AudioService.stopAudio();
       setIsPlaying(true);
       setProgress(0);
-      const success = await AudioService.playRoutine(DEFAULT_ROUTINES[0]);
+      const success = await AudioService.playRoutine(DEFAULT_ROUTINES[0], voice);
       if (!success) {
         alert('Failed to restart audio.');
       }
@@ -487,21 +494,18 @@ export default function DashboardScreen() {
               >
                 <Text style={{ color: settingsTab === 'color' ? themeColor : colors.text, fontWeight: '600' }}>Color</Text>
               </TouchableOpacity>
-              {/* 
-              // Hide the Alarm tab for now, but keep the code for future use
               <TouchableOpacity
                 style={{
                   flex: 1,
                   paddingVertical: 10,
                   borderBottomWidth: 2,
-                  borderBottomColor: settingsTab === 'alarm' ? themeColor : 'transparent',
+                  borderBottomColor: settingsTab === 'voice' ? themeColor : 'transparent',
                   alignItems: 'center',
                 }}
-                onPress={() => setSettingsTab('alarm')}
+                onPress={() => setSettingsTab('voice')}
               >
-                <Text style={{ color: settingsTab === 'alarm' ? themeColor : colors.text, fontWeight: '600' }}>Alarm</Text>
+                <Text style={{ color: settingsTab === 'voice' ? themeColor : colors.text, fontWeight: '600' }}>Voice</Text>
               </TouchableOpacity>
-              */}
             </View>
             {/* Tab Content */}
             {settingsTab === 'color' ? (
@@ -558,9 +562,7 @@ export default function DashboardScreen() {
                 />
               </>
             ) : (
-              // Hide the alarm tab content for now, but keep the code for future use
-              /*
-              <View style={{ alignItems: 'center', marginTop: 10 }}>
+              <>
                 <Text style={{
                   color: '#111',
                   fontWeight: '700',
@@ -569,59 +571,37 @@ export default function DashboardScreen() {
                   fontSize: 20,
                   letterSpacing: 0.5,
                 }}>
-                  Set Alarm Time
+                  Choose a Voice
                 </Text>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: themeColor,
-                    borderRadius: 10,
-                    padding: 12,
-                    marginBottom: 16,
-                  }}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <Text style={{ color: '#111', fontWeight: '600' }}>
-                    {alarmTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </TouchableOpacity>
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={alarmTime}
-                    mode="time"
-                    is24Hour={false}
-                    display="spinner"
-                    onChange={(event: any, selectedDate: Date | undefined) => {
-                      setShowTimePicker(false);
-                      if (selectedDate) setAlarmTime(selectedDate);
-                    }}
-                  />
-                )}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 24 }}>
+                  {VOICES.map((v) => (
+                    <TouchableOpacity
+                      key={v.key}
+                      style={{
+                        padding: 16,
+                        margin: 8,
+                        borderRadius: 12,
+                        backgroundColor: voice === v.key ? themeColor : colors.card,
+                        borderWidth: 2,
+                        borderColor: voice === v.key ? themeColor : '#ccc',
+                        alignItems: 'center',
+                        minWidth: 80,
+                      }}
+                      onPress={() => setVoice(v.key)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ color: voice === v.key ? '#fff' : colors.text, fontWeight: 'bold', fontSize: 16 }}>{v.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 <Button
-                  title="Save Alarm Time"
-                  onPress={async () => {
-                    if (!session?.user?.id) {
-                      alert('You must be logged in to save alarm time.');
-                      return;
-                    }
-                    try {
-                      await saveAlarmTime(session.user.id, alarmTime);
-                      alert('Alarm time saved!');
-                      setColorModalVisible(false);
-                    } catch (error: any) {
-                      let message = 'Failed to save alarm time.';
-                      if (error?.message) message += '\n' + error.message;
-                      if (error?.details) message += '\n' + error.details;
-                      else if (typeof error === 'object') message += '\n' + JSON.stringify(error);
-                      alert(message);
-                    }
-                  }}
+                  title="Done"
+                  onPress={() => setColorModalVisible(false)}
                   color={colors.button}
                   textColor={colors.buttonText}
                   style={{ marginTop: 8 }}
                 />
-              </View>
-              */
-              null
+              </>
             )}
           </RNView>
         </RNView>

@@ -39,7 +39,7 @@ export class AudioService {
     }
   }
 
-  static async playRoutine(routine: AudioRoutine): Promise<boolean> {
+  static async playRoutine(routine: AudioRoutine, voiceFile: string = 'ElevenLabsMatt.mp3'): Promise<boolean> {
     try {
       if (Platform.OS === 'web') {
         // Stop any existing audio synchronously (avoid async before play)
@@ -57,7 +57,7 @@ export class AudioService {
         }
         // Use correct file names and paths
         this.webBowlAudio = new window.Audio('/assets/audio/TibetanBowlSound1.mp3');
-        this.webMainAudio = new window.Audio('/assets/audio/ElevenLabsMatt.mp3');
+        this.webMainAudio = new window.Audio(`/assets/audio/${voiceFile}`);
         this.isPlaying = true;
         this.currentlyPlaying = 'bowl';
         this.webBowlAudio.volume = 0.8;
@@ -118,9 +118,9 @@ export class AudioService {
       AudioService.bowlDuration = bowlStatus.isLoaded ? (bowlStatus.durationMillis || null) : null;
       bowlSound.sound.setOnPlaybackStatusUpdate(async (status) => {
         if (status.isLoaded && status.didJustFinish) {
-          // Play the ElevenLabsMatt.mp3 audio immediately after
+          // Play the selected voice audio immediately after
           const elevenLabsSound = await Audio.Sound.createAsync(
-            getAudioSource('ElevenLabsMatt.mp3'),
+            getAudioSource(voiceFile),
             {
               shouldPlay: true,
               isLooping: false,
