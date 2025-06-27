@@ -53,7 +53,7 @@ export class AudioService {
           this.webMainAudio = null;
         }
         // Use correct file names and paths
-        this.webBowlAudio = new window.Audio('/assets/audio/Tibetan Bowl Sound 1.mp3');
+        this.webBowlAudio = new window.Audio('/assets/audio/TibetanBowlSound1.mp3');
         this.webMainAudio = new window.Audio('/assets/audio/ElevenLabs.mp3');
         this.isPlaying = true;
         this.webBowlAudio.volume = 0.8;
@@ -84,7 +84,7 @@ export class AudioService {
       }
       // Native: Play the Tibetan Bowl Sound 1 first
       const bowlSound = await Audio.Sound.createAsync(
-        getAudioSource('Tibetan Bowl Sound 1.mp3'),
+        getAudioSource('TibetanBowlSound1.mp3'),
         {
           shouldPlay: true,
           isLooping: false,
@@ -136,7 +136,7 @@ export class AudioService {
         return;
       }
       const { sound } = await Audio.Sound.createAsync(
-        getAudioSource('Tibetan Bowl Sound 1.mp3'),
+        getAudioSource('TibetanBowlSound1.mp3'),
         {
           shouldPlay: true,
           isLooping: false,
@@ -156,14 +156,14 @@ export class AudioService {
   static async playSingingBowlEnd(): Promise<void> {
     try {
       if (Platform.OS === 'web') {
-        const audio = new window.Audio('/assets/audio/Tibetan Bowl Sound 1.mp3');
+        const audio = new window.Audio('/assets/audio/TibetanBowlSound1.mp3');
         audio.volume = 0.7;
         audio.play();
         audio.onended = () => audio.remove();
         return;
       }
       const { sound } = await Audio.Sound.createAsync(
-        getAudioSource('Tibetan Bowl Sound 1.mp3'),
+        getAudioSource('TibetanBowlSound1.mp3'),
         {
           shouldPlay: true,
           isLooping: false,
@@ -350,8 +350,8 @@ const getAudioSource = (filename: string) => {
     switch (filename) {
       case 'ElevenLabs.mp3':
         return require('../assets/audio/ElevenLabs.mp3');
-      case 'Tibetan Bowl Sound 1.mp3':
-        return require('../assets/audio/Tibetan Bowl Sound 1.mp3');
+      case 'TibetanBowlSound1.mp3':
+        return require('../assets/audio/TibetanBowlSound1.mp3');
       // Add more cases as needed
       default:
         throw new Error('Unknown audio file');
